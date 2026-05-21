@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>열방약국 손익관리 v13</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <style>
+    :root{--bg:#0f172a;--panel:#1e293b;--panel2:#111827;--line:#334155;--text:#f8fafc;--muted:#b6c3d1;--blue:#38bdf8;--green:#34d399;--red:#fb7185;--white:#e2e8f0;--btn:#334155}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,sans-serif}header{padding:24px 28px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.brand h1{margin:0;font-size:28px}.version{font-size:13px;color:var(--blue);margin-left:8px}.subtitle{margin-top:8px;color:var(--muted)}.authbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.authbar .email{font-size:13px;color:var(--muted);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wrap{max-width:1280px;margin:0 auto;padding:24px}.nav{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}.btn{border:0;border-radius:12px;padding:12px 18px;background:var(--btn);color:var(--text);font-weight:700;cursor:pointer}.btn.primary,.btn.active{background:var(--blue);color:#04111d}.btn.green{background:var(--green);color:#04111d}.btn.red{background:var(--red);color:#26040a}.btn.light{background:#e2e8f0;color:#111827}.btn.small{padding:8px 10px;border-radius:9px;font-size:12px}section{display:none}.show{display:block}.grid{display:grid;gap:14px}.cards{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:16px}.two{grid-template-columns:1fr 1fr}.three{grid-template-columns:repeat(3,1fr)}.four{grid-template-columns:repeat(4,1fr)}.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}.kpi .label{font-size:14px;color:#bfe8ff}.kpi .num{font-size:28px;font-weight:900;margin:10px 0}.kpi .hint{font-size:13px;color:var(--muted)}h2{margin:0 0 18px}label{display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:#dbeafe}input,select,textarea{width:100%;background:#020b19;color:var(--text);border:1px solid #475569;border-radius:9px;padding:11px 12px;font-size:14px;ime-mode:active}input[readonly]{background:#172334;color:#5eead4}textarea{min-height:74px;resize:vertical}.formrow{margin-bottom:12px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.note{font-size:13px;color:#bfdbfe;margin-top:10px}.table-wrap{overflow:auto;max-height:420px;border:1px solid var(--line);border-radius:12px}table{width:100%;border-collapse:collapse;min-width:900px}th,td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}th{background:#0b1221}.greenText{color:var(--green);font-weight:800}.redText{color:var(--red);font-weight:800}.tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:20;align-items:center;justify-content:center;padding:20px}.modal.showModal{display:flex}.modalbox{background:#f8fafc;color:#111827;border-radius:14px;padding:22px;max-width:390px;width:100%}.modalbox input{background:#fff;color:#111827}.modalbox h3{margin-top:0}.statusBox{padding:14px;border-radius:12px;background:#020b19;border:1px solid var(--line);font-weight:900;font-size:20px}.hidden{display:none!important}@media(max-width:900px){.cards,.two,.three,.four{grid-template-columns:1fr}header{display:block}.authbar{margin-top:14px}.wrap{padding:14px}.brand h1{font-size:24px}}
+  </style>
+</head>
+<body>
+<header>
+  <div class="brand"><h1>열방약국 손익관리 <span class="version">v13-정산연동·한글입력</span></h1><div class="subtitle">조제약·일반의약품 현금/카드 매출 입력 + 일일정산 자동연동 + 한글 입력 우선</div></div>
+  <div class="authbar">
+    <span id="userEmail" class="email hidden"></span>
+    <button id="loginBtn" class="btn small light">로그인</button>
+    <button id="signupBtn" class="btn small light">회원가입</button>
+    <button id="googleBtn" class="btn small light">Google 로그인</button>
+    <button id="cloudLoadBtn" class="btn small green hidden">불러오기</button>
+    <button id="logoutBtn" class="btn small red hidden">로그아웃</button>
+  </div>
+</header>
+<div class="wrap">
+  <nav class="nav">
+    <button class="btn active" onclick="showSec('dashboard',this)">대시보드</button>
+    <button class="btn" onclick="showSec('income',this)">수입 입력</button>
+    <button class="btn" onclick="showSec('expense',this)">지출 입력</button>
+    <button class="btn" onclick="showSec('settlement',this)">✅ 일일정산</button>
+    <button class="btn" onclick="showSec('report',this)">손익 리포트</button>
+  </nav>
+
+  <div class="grid cards">
+    <div class="card kpi"><div class="label">이번 달 총매출</div><div class="num" id="kTotalSales">₩0</div><div class="hint">처방 총액 + 일반판매 총액 + 기타</div></div>
+    <div class="card kpi"><div class="label">이번 달 매출총이익</div><div class="num greenText" id="kGrossProfit">₩0</div><div class="hint">조제료 + 판매마진 + 기타</div></div>
+    <div class="card kpi"><div class="label">이번 달 운영비</div><div class="num" id="kOperatingCost">₩0</div><div class="hint">의약품 대금 제외 지출</div></div>
+    <div class="card kpi"><div class="label">이번 달 추정 순이익</div><div class="num greenText" id="kNetProfit">₩0</div><div class="hint" id="kMargin">순이익률 0.0%</div></div>
+  </div>
+
+  <section id="dashboard" class="show">
+    <div class="grid two">
+      <div class="card"><h2>월별 매출·이익</h2><canvas id="barChart"></canvas></div>
+      <div class="card"><h2>지출 항목 비율</h2><canvas id="pieChart"></canvas></div>
+    </div>
+  </section>
+
+  <section id="income">
+    <div class="card">
+      <h2>일별 수입 입력</h2>
+      <div class="grid three">
+        <div class="formrow"><label>날짜</label><input id="incomeDate" type="date"></div>
+        <div class="formrow"><label>처방조제 현금매출</label><input id="rxCash" type="number" placeholder="예: 300000"></div>
+        <div class="formrow"><label>처방조제 카드매출</label><input id="rxCard" type="number" placeholder="예: 1755240"></div>
+      </div>
+      <div class="grid three">
+        <div class="formrow"><label>처방조제 매출 합계 자동계산</label><input id="rxTotal" type="number" readonly></div>
+        <div class="formrow"><label>조제료 / 처방 마진</label><input id="dispensingFee" type="number" placeholder="예: 398510"></div>
+        <div class="formrow"><label>처방의약품비 / 원가 자동계산</label><input id="rxDrugCost" type="number" readonly></div>
+      </div>
+      <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+      <div class="grid three">
+        <div class="formrow"><label>일반의약품 현금매출</label><input id="otcCash" type="number" placeholder="예: 200000"></div>
+        <div class="formrow"><label>일반의약품 카드매출</label><input id="otcCard" type="number" placeholder="예: 608200"></div>
+        <div class="formrow"><label>일반의약품 매출 합계 자동계산</label><input id="otcTotal" type="number" readonly></div>
+      </div>
+      <div class="grid three">
+        <div class="formrow"><label>판매마진</label><input id="otcMargin" type="number" placeholder="예: 100000"></div>
+        <div class="formrow"><label>일반의약품 사입가 / 원가 자동계산</label><input id="otcCost" type="number" readonly></div>
+        <div class="formrow"><label>기타 수입</label><input id="otherIncome" type="number" placeholder="예: 0"></div>
+      </div>
+      <div class="grid three">
+        <div class="formrow"><label>당일 전체 현금매출 자동계산</label><input id="incomeCashTotal" type="number" readonly></div>
+        <div class="formrow"><label>당일 전체 카드매출 자동계산</label><input id="incomeCardTotal" type="number" readonly></div>
+        <div class="formrow"><label>당일 매출총이익 자동계산</label><input id="dailyGrossProfit" type="number" readonly></div>
+      </div>
+      <div class="formrow"><label>메모</label><textarea id="incomeMemo" placeholder="예: 비급여 조제 증가, 행사 판매 등"></textarea></div>
+      <div class="actions"><button class="btn primary" onclick="saveIncome()">수입 저장</button><button class="btn light" onclick="clearIncomeForm()">입력 초기화</button></div>
+      <div class="note">처방조제 매출 합계 = 처방 현금 + 처방 카드 / 일반의약품 매출 합계 = 일반약 현금 + 일반약 카드</div>
+    </div>
+    <div class="card" style="margin-top:14px"><h2>최근 수입 내역</h2><div class="table-wrap"><table><thead><tr><th>날짜</th><th>처방현금</th><th>처방카드</th><th>처방합계</th><th>조제료</th><th>일반현금</th><th>일반카드</th><th>일반합계</th><th>판매마진</th><th>총매출</th><th>삭제</th></tr></thead><tbody id="recentIncomeRows"></tbody></table></div></div>
+  </section>
+
+  <section id="expense">
+    <div class="card"><h2>일별 지출 입력</h2>
+      <div class="grid three"><div class="formrow"><label>날짜</label><input id="expenseDate" type="date"></div><div class="formrow"><label>지출 분류</label><select id="expenseCategory"><option>의약품 대금</option><option>인건비</option><option>식사비</option><option>건물임차료</option><option>세금</option><option>관리비</option><option>소모품</option><option>카드수수료</option><option>기타지출</option></select></div><div class="formrow"><label>금액</label><input id="expenseAmount" type="number" placeholder="예: 3000000"></div></div>
+      <div class="grid three"><div class="formrow"><label>결제수단</label><select id="expensePay"><option>카드</option><option>계좌이체</option><option>현금</option></select></div><div class="formrow"><label>거래처</label><input id="expenseVendor" placeholder="예: 태극약품"></div><div class="formrow"><label>메모</label><input id="expenseMemo" placeholder="예: 5월 도매상 결제"></div></div>
+      <div class="actions"><button class="btn primary" onclick="saveExpense()">지출 저장</button><button class="btn light" onclick="clearExpenseForm()">입력 초기화</button></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h2>최근 지출 내역</h2><div class="table-wrap"><table><thead><tr><th>날짜</th><th>분류</th><th>금액</th><th>결제</th><th>거래처</th><th>메모</th><th>삭제</th></tr></thead><tbody id="recentExpenseRows"></tbody></table></div></div>
+  </section>
+
+  <section id="settlement">
+    <div class="card"><h2>일일정산</h2>
+      <div class="grid four"><div class="formrow"><label>날짜</label><input id="setDate" type="date"></div><div class="formrow"><label>시작 잔돈</label><input id="startCash" type="number"></div><div class="formrow"><label>현금매출 자동연동</label><input id="setCashSales" type="number" readonly></div><div class="formrow"><label>카드매출 자동연동</label><input id="setCardSales" type="number" readonly></div></div>
+      <div class="grid four"><div class="formrow"><label>외상 발생</label><input id="creditOut" type="number"></div><div class="formrow"><label>외상 회수</label><input id="creditIn" type="number"></div><div class="formrow"><label>할인 금액</label><input id="discount" type="number"></div><div class="formrow"><label>현금 환불</label><input id="cashRefund" type="number"></div></div>
+      <div class="grid four"><div class="formrow"><label>중간 현금지출</label><input id="midCashExpense" type="number"></div><div class="formrow"><label>실제 마감 현금</label><input id="actualClosingCash" type="number"></div><div class="formrow"><label>예상 마감 현금</label><input id="expectedClosingCash" type="number" readonly></div><div class="formrow"><label>차액</label><input id="cashDiff" type="number" readonly></div></div>
+      <div id="settleStatus" class="statusBox">미입력</div>
+      <div class="actions"><button class="btn green" onclick="syncSettlementSalesFromIncome(true)">수입 매출 불러오기</button><button class="btn primary" onclick="saveSettlement()">정산 저장</button><button class="btn light" onclick="clearSettlementForm()">입력 초기화</button></div><div class="note">현금매출과 카드매출은 같은 날짜의 수입 입력 자료에서 자동으로 불러옵니다. 현금 정산에는 현금매출만 반영됩니다.</div>
+    </div>
+    <div class="card" style="margin-top:14px"><h2>최근 정산 내역</h2><div class="table-wrap"><table><thead><tr><th>날짜</th><th>시작잔돈</th><th>현금매출</th><th>카드매출</th><th>외상발생</th><th>외상회수</th><th>할인</th><th>환불</th><th>중간지출</th><th>예상현금</th><th>실제현금</th><th>차액</th><th>삭제</th></tr></thead><tbody id="recentSettlementRows"></tbody></table></div></div>
+  </section>
+
+  <section id="report">
+    <div class="card"><h2>분석 기준</h2><div class="grid four"><div class="formrow"><label>연도</label><select id="yearFilter"></select></div><div class="formrow"><label>월</label><select id="monthFilter"><option value="all">전체</option></select></div><div class="formrow"><label>요약 기준</label><select id="summaryMode"><option value="month">월별</option><option value="quarter">분기별</option><option value="year">연별</option></select></div><div class="formrow"><label>데이터 관리</label><div class="actions" style="margin:0"><button class="btn green" onclick="downloadJSON()">JSON 백업</button><label class="btn light" for="jsonFile">JSON 불러오기</label><input id="jsonFile" type="file" accept="application/json" style="display:none" onchange="importJSON(event)"></div></div></div></div>
+    <div class="card" style="margin-top:14px"><div class="tabs"><button class="btn primary" onclick="showReportTab('summary')">손익 요약</button><button class="btn light" onclick="showReportTab('incomeList')">수입 내역</button><button class="btn light" onclick="showReportTab('expenseList')">지출 내역</button><button class="btn light" onclick="showReportTab('settlementList')">정산 내역</button></div><div class="table-wrap"><table id="reportTable"></table></div><div class="actions"><button class="btn red" onclick="deleteAllData()">전체 데이터 삭제</button></div></div>
+  </section>
+</div>
+
+<div id="authModal" class="modal"><div class="modalbox"><h3 id="authTitle">로그인</h3><div class="formrow"><label style="color:#111827">이메일</label><input id="authEmail" type="email"></div><div class="formrow"><label style="color:#111827">비밀번호</label><input id="authPw" type="password"></div><div class="actions"><button id="authSubmit" class="btn primary">확인</button><button class="btn light" onclick="closeAuth()">닫기</button></div></div></div>
+<script>
+// Firebase Console에서 복사한 config로 교체하세요.
+const firebaseConfig = {
+  apiKey: "AIzaSyD1kxuNE05HAOjZK_NEUURomYTPnWvEpNw",
+  authDomain: "yeolbang-pharmacy.firebaseapp.com",
+  projectId: "yeolbang-pharmacy",
+  storageBucket: "yeolbang-pharmacy.firebasestorage.app",
+  messagingSenderId: "465889668826",
+  appId: "1:465889668826:web:7438ffde0b4f939ba07fe3",
+  measurementId: "G-1GRDE7WKG"
+};
+let app=null, auth=null, db=null, currentUser=null;
+try{ if(firebaseConfig.apiKey){ app=firebase.initializeApp(firebaseConfig); auth=firebase.auth(); db=firebase.firestore(); }}catch(e){console.warn(e)}
+const KEY='yeolbang_pharmacy_pnl_data_v13';
+const OLD_KEYS=['yeolbang_pharmacy_pnl_data_v12','yeolbang_pharmacy_pnl_data_v11','yeolbang_pharmacy_pnl_data_v10'];
+let data={incomes:[],expenses:[],settlements:[]};
+let currentReportTab='summary'; let barChart=null,pieChart=null;
+const $=id=>document.getElementById(id); const n=v=>Number(v||0); const won=v=>'₩'+Math.round(n(v)).toLocaleString('ko-KR'); const today=()=>new Date().toISOString().slice(0,10); const monthOf=d=>Number((d||'').slice(5,7)); const yearOf=d=>Number((d||'').slice(0,4)); const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+function normalize(){data.incomes=data.incomes||[];data.expenses=data.expenses||[];data.settlements=data.settlements||[];data.incomes.forEach(x=>{x.rxCash=n(x.rxCash);x.rxCard=n(x.rxCard);x.rxTotal=n(x.rxTotal)||x.rxCash+x.rxCard;x.dispensingFee=n(x.dispensingFee);x.rxDrugCost=n(x.rxDrugCost)||Math.max(0,x.rxTotal-x.dispensingFee);x.otcCash=n(x.otcCash);x.otcCard=n(x.otcCard);x.otcTotal=n(x.otcTotal)||x.otcCash+x.otcCard;x.otcMargin=n(x.otcMargin);x.otcCost=n(x.otcCost)||Math.max(0,x.otcTotal-x.otcMargin);x.otherIncome=n(x.otherIncome);x.cashTotal=n(x.cashTotal)||x.rxCash+x.otcCash;x.cardTotal=n(x.cardTotal)||x.rxCard+x.otcCard;x.totalSales=n(x.totalSales)||x.rxTotal+x.otcTotal+x.otherIncome;x.grossProfit=n(x.grossProfit)||x.dispensingFee+x.otcMargin+x.otherIncome;});}
+function loadLocal(){try{let raw=localStorage.getItem(KEY); if(!raw){for(const k of OLD_KEYS){raw=localStorage.getItem(k); if(raw) break;}} data=JSON.parse(raw)||data;normalize()}catch(e){console.warn(e)}}
+function saveLocal(){normalize();localStorage.setItem(KEY,JSON.stringify(data));}
+async function saveCloud(){if(!db||!currentUser)return; await db.collection('users').doc(currentUser.uid).set({data,updatedAt:new Date().toISOString()},{merge:true});}
+async function loadCloud(){if(!db||!currentUser){alert('로그인이 필요합니다.');return;} const doc=await db.collection('users').doc(currentUser.uid).get(); if(doc.exists&&doc.data().data){data=doc.data().data;normalize();saveLocal();renderAll();alert('클라우드 데이터를 불러왔습니다.');}else alert('클라우드에 저장된 데이터가 없습니다.');}
+async function persist(){saveLocal();renderAll();try{await saveCloud()}catch(e){console.warn(e)}}
+function initDates(){['incomeDate','expenseDate','setDate'].forEach(id=>$(id).value=today()); for(let i=1;i<=12;i++)$('monthFilter').innerHTML+=`<option value="${i}">${i}월</option>`; const y=new Date().getFullYear(); for(let yy=y-3;yy<=y+1;yy++)$('yearFilter').innerHTML+=`<option value="${yy}" ${yy===y?'selected':''}>${yy}년</option>`;}
+function showSec(id,btn){document.querySelectorAll('section').forEach(s=>s.classList.remove('show'));$(id).classList.add('show');document.querySelectorAll('.nav .btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');if(id==='settlement')syncSettlementSalesFromIncome(false);renderAll();}
+function calcIncomeForm(){const rxCash=n($('rxCash').value),rxCard=n($('rxCard').value),fee=n($('dispensingFee').value),otcCash=n($('otcCash').value),otcCard=n($('otcCard').value),margin=n($('otcMargin').value),other=n($('otherIncome').value);const rxT=rxCash+rxCard,otcT=otcCash+otcCard;$('rxTotal').value=rxT;$('rxDrugCost').value=Math.max(0,rxT-fee);$('otcTotal').value=otcT;$('otcCost').value=Math.max(0,otcT-margin);$('incomeCashTotal').value=rxCash+otcCash;$('incomeCardTotal').value=rxCard+otcCard;$('dailyGrossProfit').value=fee+margin+other;}
+['rxCash','rxCard','dispensingFee','otcCash','otcCard','otcMargin','otherIncome'].forEach(id=>document.addEventListener('input',e=>{if(e.target&&e.target.id===id)calcIncomeForm()}));
+function saveIncome(){calcIncomeForm();const row={id:uid(),date:$('incomeDate').value||today(),rxCash:n($('rxCash').value),rxCard:n($('rxCard').value),rxTotal:n($('rxTotal').value),dispensingFee:n($('dispensingFee').value),rxDrugCost:n($('rxDrugCost').value),otcCash:n($('otcCash').value),otcCard:n($('otcCard').value),otcTotal:n($('otcTotal').value),otcMargin:n($('otcMargin').value),otcCost:n($('otcCost').value),otherIncome:n($('otherIncome').value),cashTotal:n($('incomeCashTotal').value),cardTotal:n($('incomeCardTotal').value),totalSales:n($('rxTotal').value)+n($('otcTotal').value)+n($('otherIncome').value),grossProfit:n($('dailyGrossProfit').value),memo:$('incomeMemo').value};data.incomes.push(row);persist();if($('setDate').value===row.date)syncSettlementSalesFromIncome(false);alert('수입이 저장되었습니다.');}
+function clearIncomeForm(){['rxCash','rxCard','dispensingFee','otcCash','otcCard','otcMargin','otherIncome','incomeMemo'].forEach(id=>$(id).value='');calcIncomeForm();}
+function saveExpense(){const amount=n($('expenseAmount').value);if(amount<=0){alert('지출 금액을 입력하세요.');return;}data.expenses.push({id:uid(),date:$('expenseDate').value||today(),category:$('expenseCategory').value,amount,payment:$('expensePay').value,vendor:$('expenseVendor').value,memo:$('expenseMemo').value});persist();alert('지출이 저장되었습니다.');}
+function clearExpenseForm(){['expenseAmount','expenseVendor','expenseMemo'].forEach(id=>$(id).value='');}
+
+function incomeTotalsByDate(date){
+  const rows=data.incomes.filter(x=>x.date===date);
+  return rows.reduce((a,x)=>{a.cash+=n(x.cashTotal)||n(x.rxCash)+n(x.otcCash);a.card+=n(x.cardTotal)||n(x.rxCard)+n(x.otcCard);return a;},{cash:0,card:0});
+}
+function syncSettlementSalesFromIncome(showMessage=false){
+  const d=$('setDate').value||today();
+  const t=incomeTotalsByDate(d);
+  $('setCashSales').value=t.cash;
+  $('setCardSales').value=t.card;
+  calcSettlement();
+  if(showMessage){
+    const msg=`${d} 수입 입력 기준\n현금매출 ${won(t.cash)} / 카드매출 ${won(t.card)}를 일일정산에 반영했습니다.`;
+    if(t.cash||t.card) alert(msg);
+  }
+}
+function calcSettlement(){const expected=n($('startCash').value)+n($('setCashSales').value)+n($('creditIn').value)-n($('cashRefund').value)-n($('midCashExpense').value);const actual=n($('actualClosingCash').value);const diff=actual-expected;$('expectedClosingCash').value=expected;$('cashDiff').value=diff;const box=$('settleStatus');if(!$('actualClosingCash').value){box.textContent='미입력';box.className='statusBox';return;} if(diff===0){box.textContent='✅ 정산 일치';box.className='statusBox greenText'}else{box.textContent='⚠ 정산 불일치: '+won(diff);box.className='statusBox redText'}}
+['startCash','creditOut','creditIn','discount','cashRefund','midCashExpense','actualClosingCash'].forEach(id=>document.addEventListener('input',e=>{if(e.target&&e.target.id===id)calcSettlement()}));document.addEventListener('change',e=>{if(e.target&&e.target.id==='setDate')syncSettlementSalesFromIncome(false)});
+function saveSettlement(){calcSettlement();data.settlements.push({id:uid(),date:$('setDate').value||today(),startCash:n($('startCash').value),cashSales:n($('setCashSales').value),cardSales:n($('setCardSales').value),creditOut:n($('creditOut').value),creditIn:n($('creditIn').value),discount:n($('discount').value),cashRefund:n($('cashRefund').value),midCashExpense:n($('midCashExpense').value),expectedClosingCash:n($('expectedClosingCash').value),actualClosingCash:n($('actualClosingCash').value),diff:n($('cashDiff').value)});persist();alert('정산이 저장되었습니다.');}
+function clearSettlementForm(){['startCash','creditOut','creditIn','discount','cashRefund','midCashExpense','actualClosingCash'].forEach(id=>$(id).value='');syncSettlementSalesFromIncome(false);}
+function summaryFor(year,month='all'){let inc=data.incomes.filter(x=>yearOf(x.date)==year&&(month==='all'||monthOf(x.date)==month));let exp=data.expenses.filter(x=>yearOf(x.date)==year&&(month==='all'||monthOf(x.date)==month));let totalSales=inc.reduce((s,x)=>s+n(x.totalSales),0),grossProfit=inc.reduce((s,x)=>s+n(x.grossProfit),0),rxTotal=inc.reduce((s,x)=>s+n(x.rxTotal),0),otcTotal=inc.reduce((s,x)=>s+n(x.otcTotal),0),cashSales=inc.reduce((s,x)=>s+n(x.cashTotal),0),cardSales=inc.reduce((s,x)=>s+n(x.cardTotal),0),drugPay=exp.filter(x=>x.category==='의약품 대금').reduce((s,x)=>s+n(x.amount),0),operating=exp.filter(x=>x.category!=='의약품 대금').reduce((s,x)=>s+n(x.amount),0);return{totalSales,grossProfit,rxTotal,otcTotal,cashSales,cardSales,drugPay,operating,netProfit:grossProfit-operating,expenses:exp.reduce((s,x)=>s+n(x.amount),0)}}
+function renderKPI(){const y=n($('yearFilter').value)||new Date().getFullYear(),m=new Date().getMonth()+1,s=summaryFor(y,m);$('kTotalSales').textContent=won(s.totalSales);$('kGrossProfit').textContent=won(s.grossProfit);$('kOperatingCost').textContent=won(s.operating);$('kNetProfit').textContent=won(s.netProfit);$('kMargin').textContent='순이익률 '+(s.totalSales?((s.netProfit/s.totalSales)*100).toFixed(1):'0.0')+'%';}
+function renderRecent(){$('recentIncomeRows').innerHTML=data.incomes.slice(-10).reverse().map(x=>`<tr><td>${x.date}</td><td>${won(x.rxCash)}</td><td>${won(x.rxCard)}</td><td>${won(x.rxTotal)}</td><td>${won(x.dispensingFee)}</td><td>${won(x.otcCash)}</td><td>${won(x.otcCard)}</td><td>${won(x.otcTotal)}</td><td>${won(x.otcMargin)}</td><td>${won(x.totalSales)}</td><td><button class="btn small red" onclick="delItem('incomes','${x.id}')">삭제</button></td></tr>`).join('');$('recentExpenseRows').innerHTML=data.expenses.slice(-10).reverse().map(x=>`<tr><td>${x.date}</td><td>${x.category}</td><td>${won(x.amount)}</td><td>${x.payment||''}</td><td>${x.vendor||''}</td><td>${x.memo||''}</td><td><button class="btn small red" onclick="delItem('expenses','${x.id}')">삭제</button></td></tr>`).join('');$('recentSettlementRows').innerHTML=data.settlements.slice(-10).reverse().map(x=>`<tr><td>${x.date}</td><td>${won(x.startCash)}</td><td>${won(x.cashSales)}</td><td>${won(x.cardSales)}</td><td>${won(x.creditOut)}</td><td>${won(x.creditIn)}</td><td>${won(x.discount)}</td><td>${won(x.cashRefund)}</td><td>${won(x.midCashExpense)}</td><td>${won(x.expectedClosingCash)}</td><td>${won(x.actualClosingCash)}</td><td class="${x.diff===0?'greenText':'redText'}">${won(x.diff)}</td><td><button class="btn small red" onclick="delItem('settlements','${x.id}')">삭제</button></td></tr>`).join('');}
+function delItem(arr,id){if(confirm('삭제할까요?')){data[arr]=data[arr].filter(x=>x.id!==id);persist();}}
+function renderReport(){const y=n($('yearFilter').value)||new Date().getFullYear(),m=$('monthFilter').value;let html='';if(currentReportTab==='summary'){html='<thead><tr><th>기간</th><th>총매출</th><th>현금매출</th><th>카드매출</th><th>매출총이익</th><th>의약품대금</th><th>운영비</th><th>추정순이익</th><th>순이익률</th></tr></thead><tbody>';let rows=[];if($('summaryMode').value==='month'){for(let i=1;i<=12;i++)rows.push([i+'월',summaryFor(y,i)]);}else if($('summaryMode').value==='quarter'){for(let q=1;q<=4;q++){let ms=[q*3-2,q*3-1,q*3], ss=ms.map(mm=>summaryFor(y,mm)).reduce((a,b)=>{Object.keys(a).forEach(k=>a[k]+=b[k]);return a},{totalSales:0,grossProfit:0,cashSales:0,cardSales:0,drugPay:0,operating:0,netProfit:0});rows.push([q+'분기',ss]);}}else rows.push([y+'년',summaryFor(y,'all')]);html+=rows.map(([label,s])=>`<tr><td>${label}</td><td>${won(s.totalSales)}</td><td>${won(s.cashSales)}</td><td>${won(s.cardSales)}</td><td>${won(s.grossProfit)}</td><td>${won(s.drugPay)}</td><td>${won(s.operating)}</td><td class="${s.netProfit>=0?'greenText':'redText'}">${won(s.netProfit)}</td><td>${s.totalSales?((s.netProfit/s.totalSales)*100).toFixed(1):'0.0'}%</td></tr>`).join('')+'</tbody>';}else if(currentReportTab==='incomeList'){let rows=data.incomes.filter(x=>yearOf(x.date)==y&&(m==='all'||monthOf(x.date)==n(m)));html='<thead><tr><th>날짜</th><th>처방현금</th><th>처방카드</th><th>처방합계</th><th>조제료</th><th>처방원가</th><th>일반현금</th><th>일반카드</th><th>일반합계</th><th>판매마진</th><th>일반원가</th><th>기타</th><th>총매출</th><th>매출총이익</th></tr></thead><tbody>'+rows.map(x=>`<tr><td>${x.date}</td><td>${won(x.rxCash)}</td><td>${won(x.rxCard)}</td><td>${won(x.rxTotal)}</td><td>${won(x.dispensingFee)}</td><td>${won(x.rxDrugCost)}</td><td>${won(x.otcCash)}</td><td>${won(x.otcCard)}</td><td>${won(x.otcTotal)}</td><td>${won(x.otcMargin)}</td><td>${won(x.otcCost)}</td><td>${won(x.otherIncome)}</td><td>${won(x.totalSales)}</td><td>${won(x.grossProfit)}</td></tr>`).join('')+'</tbody>';}else if(currentReportTab==='expenseList'){let rows=data.expenses.filter(x=>yearOf(x.date)==y&&(m==='all'||monthOf(x.date)==n(m)));html='<thead><tr><th>날짜</th><th>분류</th><th>금액</th><th>결제</th><th>거래처</th><th>메모</th></tr></thead><tbody>'+rows.map(x=>`<tr><td>${x.date}</td><td>${x.category}</td><td>${won(x.amount)}</td><td>${x.payment||''}</td><td>${x.vendor||''}</td><td>${x.memo||''}</td></tr>`).join('')+'</tbody>';}else{let rows=data.settlements.filter(x=>yearOf(x.date)==y&&(m==='all'||monthOf(x.date)==n(m)));html='<thead><tr><th>날짜</th><th>시작잔돈</th><th>현금매출</th><th>카드매출</th><th>예상현금</th><th>실제현금</th><th>차액</th></tr></thead><tbody>'+rows.map(x=>`<tr><td>${x.date}</td><td>${won(x.startCash)}</td><td>${won(x.cashSales)}</td><td>${won(x.cardSales)}</td><td>${won(x.expectedClosingCash)}</td><td>${won(x.actualClosingCash)}</td><td class="${x.diff===0?'greenText':'redText'}">${won(x.diff)}</td></tr>`).join('')+'</tbody>';}$('reportTable').innerHTML=html;}
+function showReportTab(t){currentReportTab=t;document.querySelectorAll('.tabs .btn').forEach(b=>{b.classList.remove('primary');b.classList.add('light')});event.target.classList.add('primary');event.target.classList.remove('light');renderReport();}
+function renderCharts(){const y=n($('yearFilter').value)||new Date().getFullYear();const labels=[1,2,3,4,5,6,7,8,9,10,11,12].map(i=>i+'월'),sales=labels.map((_,i)=>summaryFor(y,i+1).totalSales),gross=labels.map((_,i)=>summaryFor(y,i+1).grossProfit),net=labels.map((_,i)=>summaryFor(y,i+1).netProfit); if(barChart)barChart.destroy();barChart=new Chart($('barChart'),{type:'bar',data:{labels,datasets:[{label:'총매출',data:sales},{label:'매출총이익',data:gross},{label:'추정순이익',data:net}]},options:{responsive:true,plugins:{legend:{labels:{color:'#e2e8f0'}}},scales:{x:{ticks:{color:'#e2e8f0'},grid:{color:'#334155'}},y:{ticks:{color:'#e2e8f0'},grid:{color:'#334155'}}}}});const cats={};data.expenses.filter(x=>yearOf(x.date)==y).forEach(x=>cats[x.category]=(cats[x.category]||0)+n(x.amount));if(pieChart)pieChart.destroy();pieChart=new Chart($('pieChart'),{type:'doughnut',data:{labels:Object.keys(cats),datasets:[{data:Object.values(cats)}]},options:{plugins:{legend:{labels:{color:'#e2e8f0'}}}}});}
+function renderAll(){normalize();if($('settlement').classList.contains('show'))syncSettlementSalesFromIncome(false);renderKPI();renderRecent();renderReport();renderCharts();}
+function downloadJSON(){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='yeolbang_pharmacy_backup_'+today()+'.json';a.click();URL.revokeObjectURL(a.href)}
+function importJSON(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async()=>{try{let obj=JSON.parse(r.result);data={incomes:obj.incomes||obj.income||[],expenses:obj.expenses||obj.expense||[],settlements:obj.settlements||obj.settlement||[]};normalize();await persist();alert(`JSON 불러오기 완료\n수입 ${data.incomes.length}건 / 지출 ${data.expenses.length}건 / 정산 ${data.settlements.length}건`);}catch(err){alert('JSON 파일을 읽을 수 없습니다.')}};r.readAsText(f);e.target.value='';}
+function deleteAllData(){if(confirm('전체 데이터를 삭제할까요?')){data={incomes:[],expenses:[],settlements:[]};persist();}}
+function openAuth(mode){$('authModal').classList.add('showModal');$('authTitle').textContent=mode==='signup'?'회원가입':'로그인';$('authSubmit').onclick=()=>emailAuth(mode)} function closeAuth(){$('authModal').classList.remove('showModal')}
+async function emailAuth(mode){if(!auth){alert('Firebase config를 확인하세요.');return;}const email=$('authEmail').value,pw=$('authPw').value;try{if(mode==='signup')await auth.createUserWithEmailAndPassword(email,pw);else await auth.signInWithEmailAndPassword(email,pw);closeAuth();}catch(e){alert(e.message)}}
+async function googleLogin(){if(!auth){alert('Firebase config를 확인하세요.');return;}try{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())}catch(e){alert('Google 로그인 오류: '+e.message)}}
+function updateAuthUI(){const logged=!!currentUser;$('userEmail').classList.toggle('hidden',!logged);$('userEmail').textContent=logged?currentUser.email:'';['loginBtn','signupBtn','googleBtn'].forEach(id=>$(id).classList.toggle('hidden',logged));['logoutBtn','cloudLoadBtn'].forEach(id=>$(id).classList.toggle('hidden',!logged));}
+
+function enableKoreanInputs(){
+  document.querySelectorAll('input:not([type=number]):not([type=date]), textarea').forEach(el=>{
+    el.setAttribute('lang','ko');
+    el.setAttribute('inputmode','text');
+    el.setAttribute('autocomplete','off');
+    el.setAttribute('autocapitalize','none');
+    el.setAttribute('spellcheck','false');
+  });
+}
+$('loginBtn').onclick=()=>openAuth('login');$('signupBtn').onclick=()=>openAuth('signup');$('googleBtn').onclick=googleLogin;$('logoutBtn').onclick=()=>auth.signOut();$('cloudLoadBtn').onclick=loadCloud;['yearFilter','monthFilter','summaryMode'].forEach(id=>document.addEventListener('change',e=>{if(e.target&&e.target.id===id)renderAll()}));
+enableKoreanInputs();loadLocal();initDates();calcIncomeForm();syncSettlementSalesFromIncome(false);renderAll(); if(auth){auth.onAuthStateChanged(async u=>{currentUser=u;updateAuthUI();if(u){try{await loadCloud()}catch(e){console.warn(e)}}});}else updateAuthUI();
+</script>
+</body>
+</html>
